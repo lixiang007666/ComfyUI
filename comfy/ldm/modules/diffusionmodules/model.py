@@ -5,6 +5,7 @@ import torch.nn as nn
 import numpy as np
 from einops import rearrange
 from typing import Optional, Any
+import oneflow as flow
 
 from comfy import model_management
 import comfy.ops
@@ -231,7 +232,13 @@ def pytorch_attention(q, k, v):
     )
 
     try:
-        out = torch.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=None, dropout_p=0.0, is_causal=False)
+        # For vae decoder 
+        # ONEDIFF_INITIAL_PACKAGE_NAMES_FOR_CLASS_PROXIES does not take effect.
+        if q.dtype == flow.float32:
+            out = flow.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=None, dropout_p=0.0, is_causal=False)
+        else:
+            out = torch.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=None, dropout_p=0.0, is_causal=False)
+        # out = torch.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=None, dropout_p=0.0, is_causal=False)
         out = out.transpose(2, 3).reshape(B, C, H, W)
     except model_management.OOM_EXCEPTION as e:
         print("scaled_dot_product_attention OOMed: switched to slice attention")

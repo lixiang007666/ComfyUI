@@ -163,7 +163,7 @@ class VAE:
             device = model_management.vae_device()
         self.device = device
         self.offload_device = model_management.vae_offload_device()
-        self.vae_dtype = model_management.vae_dtype()
+        self.vae_dtype = torch.float32
         self.first_stage_model.to(self.vae_dtype)
 
     def decode_tiled_(self, samples, tile_x=64, tile_y=64, overlap = 16):
@@ -194,7 +194,7 @@ class VAE:
         return samples
 
     def decode(self, samples_in):
-        self.first_stage_model = self.first_stage_model.to(self.device)
+        self.first_stage_model.to(self.device)
         try:
             memory_used = (2562 * samples_in.shape[2] * samples_in.shape[3] * 64) * 1.7
             model_management.free_memory(memory_used, self.device)
@@ -210,7 +210,7 @@ class VAE:
             print("Warning: Ran out of memory when regular VAE decoding, retrying with tiled VAE decoding.")
             pixel_samples = self.decode_tiled_(samples_in)
 
-        self.first_stage_model = self.first_stage_model.to(self.offload_device)
+        self.first_stage_model.to(self.offload_device)
         pixel_samples = pixel_samples.cpu().movedim(1,-1)
         return pixel_samples
 
@@ -221,7 +221,7 @@ class VAE:
         return output.movedim(1,-1)
 
     def encode(self, pixel_samples):
-        self.first_stage_model = self.first_stage_model.to(self.device)
+        self.first_stage_model.to(self.device)
         pixel_samples = pixel_samples.movedim(-1,1)
         try:
             memory_used = (2078 * pixel_samples.shape[2] * pixel_samples.shape[3]) * 1.7 #NOTE: this constant along with the one in the decode above are estimated from the mem usage for the VAE and could change.
@@ -238,7 +238,7 @@ class VAE:
             print("Warning: Ran out of memory when regular VAE encoding, retrying with tiled VAE encoding.")
             samples = self.encode_tiled_(pixel_samples)
 
-        self.first_stage_model = self.first_stage_model.to(self.offload_device)
+        self.first_stage_model.to(self.offload_device)
         return samples
 
     def encode_tiled(self, pixel_samples, tile_x=512, tile_y=512, overlap = 64):
